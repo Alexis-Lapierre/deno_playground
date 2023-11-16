@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "strict": true,
+  },
+  "lint": {
+    "include": ["src/"],
+    "rules": {
+      "tags": ["recommended"],
+    },
+  }
+  "tasks": {
+    "dev": "deno run --watch main.ts"
+  }
+}
