@@ -3,13 +3,41 @@ export type LazyGenerator<T> = Generator<T, void, void>;
 export class Lazy<A> {
   constructor(private readonly lazy: LazyGenerator<A>) {}
 
-  map<B>(lambda: (a: A) => B): Lazy<B> {
-    const _lazy = this.lazy;
+  concat(...values: Lazy<A>[]): Lazy<A> {
     return new Lazy(function* () {
-      for (const elem of _lazy) {
-        yield lambda(elem);
+      for (const value of values) {
+        yield* value.lazy;
       }
     }());
+  }
+
+  entries(): Lazy<[number, A]> {
+    const _lazy = this.lazy;
+    return new Lazy(function* () {
+      let index = -1;
+      while (true) {
+        const next = _lazy.next();
+
+        if (next.done) {
+          return;
+        }
+
+        yield [++index, next.value];
+      }
+    }());
+  }
+
+  every(lambda: (a: A) => boolean): boolean {
+    for (const elem of this.lazy) {
+      if (lambda(elem) === false) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  fill<B>(defaultValue: B): Lazy<B> {
+    return this.map(() => defaultValue);
   }
 
   filter(lambda: (a: A) => boolean): Lazy<A> {
@@ -23,6 +51,24 @@ export class Lazy<A> {
     }());
   }
 
+  find(lambda: (a: A) => boolean): A | undefined {
+    for (const elem of this.lazy) {
+      if (lambda(elem)) {
+        return elem;
+      }
+    }
+    return undefined;
+  }
+
+  map<B>(lambda: (a: A) => B): Lazy<B> {
+    const _lazy = this.lazy;
+    return new Lazy(function* () {
+      for (const elem of _lazy) {
+        yield lambda(elem);
+      }
+    }());
+  }
+
   take(n: number): Lazy<A> {
     const _lazy = this.lazy;
     return new Lazy(function* () {
@@ -31,6 +77,16 @@ export class Lazy<A> {
         yield next.value;
         next = _lazy.next();
         --n;
+      }
+    }());
+  }
+
+  push(...aList: A[]): Lazy<A> {
+    const _lazy = this.lazy;
+    return new Lazy(function* () {
+      yield* _lazy;
+      for (const a of aList) {
+        yield a;
       }
     }());
   }
@@ -58,12 +114,37 @@ export class Lazy<A> {
     return result;
   }
 
+  shift(): A {
+    return this.lazy.next().value as A;
+  }
+
+  some(lambda: (a: A) => boolean): boolean {
+    for (const elem of this.lazy) {
+      if (lambda(elem) === true) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   collect(): A[] {
     return this.reduce((acc, elem) => acc.concat(elem), <A[]> []);
   }
+
+  toString(): string {
+    try {
+      return this.map(String).reduce1((str, elem) => `${str},${String(elem)}`);
+    } catch {
+      return "";
+    }
+  }
+
+  static from<A>(input: ArrayLike<A> | Iterable<A>): Lazy<A> {
+    return lazy(input);
+  }
 }
 
-export function lazy<A>(input: ArrayLike<A> | Iterable<A>): Lazy<A> {
+function lazy<A>(input: ArrayLike<A> | Iterable<A>): Lazy<A> {
   if (isArrayLike(input)) {
     return new Lazy(lazyArray(input));
   } else {
