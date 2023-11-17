@@ -1,0 +1,8 @@
+[[language]]
+name = "typescript"
+language-servers = [{ name = "deno-lsp" }]
+
+[language-server.deno-lsp]
+command = "deno"
+args = ["lsp"]
+config = { provideFormatter = true }
